@@ -1,0 +1,153 @@
+# .github/workflows/daily_3x_shorts.yml
+# ══════════════════════════════════════════════════════════
+#  GitHub Actions — 3x Daily Kids Shorts
+#  Zero investment · Public repo = unlimited free minutes
+# ══════════════════════════════════════════════════════════
+#
+#  Schedule (US Eastern → UTC conversion):
+#    Slot 1 · 8:00 AM EST → 13:00 UTC  · Animal Facts
+#    Slot 2 · 3:00 PM EST → 20:00 UTC  · Dinosaur Facts
+#    Slot 3 · 7:00 PM EST → 00:00 UTC  · Ocean Animals
+#
+#  Secrets needed (Settings → Secrets → Actions):
+#    GEMINI_API_KEY       → from aistudio.google.com (no card)
+#    YOUTUBE_TOKEN_B64    → base64 -i youtube_token.pickle | tr -d '\n'
+#    YOUTUBE_CLIENT_B64   → base64 -i client_secrets.json  | tr -d '\n'
+# ══════════════════════════════════════════════════════════
+
+name: Kids Shorts — 3x Daily (Zero Cost)
+
+on:
+  schedule:
+    - cron: "0 13 * * *"    # Slot 1 → 8:00 AM EST
+    - cron: "0 20 * * *"    # Slot 2 → 3:00 PM EST
+    - cron: "0 0  * * *"    # Slot 3 → 7:00 PM EST
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "Slot to run (1=8AM Animal, 2=3PM Dino, 3=7PM Ocean)"
+        required: true
+        default: "1"
+        type: choice
+        options: ["1", "2", "3"]
+
+# Shared install steps as a YAML anchor
+x-common-steps: &common-steps
+  - uses: actions/checkout@v4
+  - uses: actions/setup-python@v5
+    with:
+      python-version: "3.11"
+  - name: Install FFmpeg
+    run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+  - name: Install Python deps
+    run: pip install --quiet google-generativeai edge-tts pytrends requests pytz google-api-python-client google-auth-oauthlib Pillow
+  - name: Restore YouTube credentials
+    env:
+      YOUTUBE_TOKEN_B64:  ${{ secrets.YOUTUBE_TOKEN_B64 }}
+      YOUTUBE_CLIENT_B64: ${{ secrets.YOUTUBE_CLIENT_B64 }}
+    run: |
+      echo "$YOUTUBE_TOKEN_B64"  | base64 -d > youtube_token.pickle
+      echo "$YOUTUBE_CLIENT_B64" | base64 -d > client_secrets.json
+
+jobs:
+  # ── SLOT 1 — 8:00 AM EST ──────────────────────────────────
+  slot-1:
+    name: "Slot 1 · 8AM EST · Animal Facts"
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 13 * * *')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == '1')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Install Python deps
+        run: pip install --quiet google-generativeai edge-tts pytrends requests pytz google-api-python-client google-auth-oauthlib Pillow
+      - name: Restore YouTube credentials
+        env:
+          YOUTUBE_TOKEN_B64:  ${{ secrets.YOUTUBE_TOKEN_B64 }}
+          YOUTUBE_CLIENT_B64: ${{ secrets.YOUTUBE_CLIENT_B64 }}
+        run: |
+          echo "$YOUTUBE_TOKEN_B64"  | base64 -d > youtube_token.pickle
+          echo "$YOUTUBE_CLIENT_B64" | base64 -d > client_secrets.json
+      - name: Run slot 1
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python pipeline_v3.py --slot 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slot1-${{ github.run_number }}
+          path: output/slot_1/script_seo.json
+          retention-days: 7
+
+  # ── SLOT 2 — 3:00 PM EST ──────────────────────────────────
+  slot-2:
+    name: "Slot 2 · 3PM EST · Dinosaur Facts"
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 20 * * *')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == '2')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Install Python deps
+        run: pip install --quiet google-generativeai edge-tts pytrends requests pytz google-api-python-client google-auth-oauthlib Pillow
+      - name: Restore YouTube credentials
+        env:
+          YOUTUBE_TOKEN_B64:  ${{ secrets.YOUTUBE_TOKEN_B64 }}
+          YOUTUBE_CLIENT_B64: ${{ secrets.YOUTUBE_CLIENT_B64 }}
+        run: |
+          echo "$YOUTUBE_TOKEN_B64"  | base64 -d > youtube_token.pickle
+          echo "$YOUTUBE_CLIENT_B64" | base64 -d > client_secrets.json
+      - name: Run slot 2
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python pipeline_v3.py --slot 2
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slot2-${{ github.run_number }}
+          path: output/slot_2/script_seo.json
+          retention-days: 7
+
+  # ── SLOT 3 — 7:00 PM EST ──────────────────────────────────
+  slot-3:
+    name: "Slot 3 · 7PM EST · Ocean Animals"
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 0 * * *')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == '3')
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Install Python deps
+        run: pip install --quiet google-generativeai edge-tts pytrends requests pytz google-api-python-client google-auth-oauthlib Pillow
+      - name: Restore YouTube credentials
+        env:
+          YOUTUBE_TOKEN_B64:  ${{ secrets.YOUTUBE_TOKEN_B64 }}
+          YOUTUBE_CLIENT_B64: ${{ secrets.YOUTUBE_CLIENT_B64 }}
+        run: |
+          echo "$YOUTUBE_TOKEN_B64"  | base64 -d > youtube_token.pickle
+          echo "$YOUTUBE_CLIENT_B64" | base64 -d > client_secrets.json
+      - name: Run slot 3
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python pipeline_v3.py --slot 3
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: slot3-${{ github.run_number }}
+          path: output/slot_3/script_seo.json
+          retention-days: 7
