@@ -1,0 +1,6 @@
+client_secrets.json
+youtube_token.pickle
+output/
+assets/
+__pycache__/
+*.pyc

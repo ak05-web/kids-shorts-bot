@@ -1,0 +1,119 @@
+# requirements.txt — v3 Zero Investment
+# Every tool here: free, no credit card, no billing account
+
+google-generativeai>=0.7.0   # Gemini API — free, no card
+edge-tts>=6.1.9              # Microsoft TTS — free, no card
+pytrends>=4.9.2              # Google Trends — free, no card
+requests>=2.31.0             # HTTP — built-in
+pytz>=2024.1                 # Timezone — free
+google-api-python-client>=2.100.0   # YouTube API — free quota
+google-auth-oauthlib>=1.1.0         # YouTube OAuth — free
+Pillow>=10.0.0               # Images — free
+
+# Install command:
+# pip install -r requirements.txt
+#
+# FFmpeg (not pip — install separately):
+#   Mac:    brew install ffmpeg
+#   Ubuntu: sudo apt install ffmpeg
+#   Windows: https://ffmpeg.org/download.html
+
+# ══════════════════════════════════════════════════════════
+#  ZERO INVESTMENT SETUP GUIDE
+#  No credit card. No billing. No subscriptions. Ever.
+# ══════════════════════════════════════════════════════════
+
+# ── THE ONLY KEY YOU NEED ────────────────────────────────
+#
+#  GEMINI API KEY  (free, no credit card)
+#  ─────────────────────────────────────
+#  1. Go to: aistudio.google.com
+#  2. Sign in with any Google account (Gmail)
+#  3. Click "Get API key" → "Create API key in new project"
+#  4. Copy the key → paste into pipeline_v3.py as GEMINI_API_KEY
+#     OR set as environment variable: export GEMINI_API_KEY="..."
+#
+#  Free tier (no card required):
+#    - 15 requests per minute
+#    - 1,000,000 tokens per day
+#    - 3 videos/day uses about 15,000 tokens/day → 1.5% of daily limit
+#    - Will NEVER hit the limit for this use case
+
+# ── TOOLS COST BREAKDOWN ─────────────────────────────────
+#
+#  Tool                   Cost      Card needed?
+#  ─────────────────────── ──────── ─────────────
+#  Google Gemini API       $0.00    NO
+#  Microsoft Edge TTS      $0.00    NO
+#  Pollinations.ai         $0.00    NO
+#  Mixkit music CDN        $0.00    NO
+#  FFmpeg                  $0.00    NO
+#  YouTube Data API v3     $0.00    NO
+#  GitHub Actions (public) $0.00    NO
+#  ─────────────────────── ──────── ─────────────
+#  TOTAL                   $0.00    NO CARD EVER
+
+# ── YOUTUBE API SETUP (free, no card) ────────────────────
+#
+#  1. Go to: console.cloud.google.com
+#  2. Create project → no billing needed for free APIs
+#  3. APIs & Services → Enable → search "YouTube Data API v3" → Enable
+#  4. Credentials → Create → OAuth 2.0 → Desktop App → Download JSON
+#  5. Rename to: client_secrets.json → place in project folder
+#  6. Run once locally to authorize (opens browser):
+#       python pipeline_v3.py --slot 1
+#     → Sign in with your YouTube channel Google account
+#     → Click Allow → youtube_token.pickle saved
+#     → All future runs are headless
+#
+#  Free quota: 10,000 units/day
+#  Each upload uses ~1,600 units → 3 uploads = 4,800 → well within limit
+
+# ── GITHUB ACTIONS (unlimited on public repos) ────────────
+#
+#  Private repo: 2,000 min/month free (can run out)
+#  Public repo:  UNLIMITED minutes free
+#
+#  To use unlimited free minutes:
+#  → Create a PUBLIC GitHub repo for your project
+#  → Your source code is visible, but your API keys stay in Secrets
+#
+#  Add these 3 secrets (Settings → Secrets → Actions):
+#
+#    Secret name          How to get the value
+#    ─────────────────── ──────────────────────────────────────
+#    GEMINI_API_KEY       From aistudio.google.com (no card)
+#    YOUTUBE_TOKEN_B64    Run: base64 -i youtube_token.pickle | tr -d '\n'
+#    YOUTUBE_CLIENT_B64   Run: base64 -i client_secrets.json  | tr -d '\n'
+
+# ── PROJECT FILE STRUCTURE ────────────────────────────────
+#
+#  your-repo/
+#  ├── pipeline_v3.py          ← main pipeline
+#  ├── requirements.txt        ← this file
+#  ├── client_secrets.json     ← YouTube OAuth (DO NOT commit)
+#  ├── youtube_token.pickle    ← YouTube token (DO NOT commit)
+#  ├── .gitignore              ← ignore secrets (see below)
+#  ├── .github/
+#  │   └── workflows/
+#  │       └── daily_3x_shorts.yml
+#  └── assets/                 ← cached music (auto-created)
+
+# ── .gitignore (add this to protect secrets) ─────────────
+#
+#  client_secrets.json
+#  youtube_token.pickle
+#  output/
+#  assets/
+#  __pycache__/
+
+# ── TESTING BEFORE YOU AUTOMATE ──────────────────────────
+#
+#  Test each slot manually first:
+#    python pipeline_v3.py --slot 1   # Animal Facts  8AM EST
+#    python pipeline_v3.py --slot 2   # Dino Facts    3PM EST
+#    python pipeline_v3.py --slot 3   # Ocean Animals 7PM EST
+#
+#  Each run takes about 5-8 minutes on a normal laptop.
+#  Output is saved to: output/slot_1/, output/slot_2/, output/slot_3/
+#  Upload log: output/upload_log.jsonl
