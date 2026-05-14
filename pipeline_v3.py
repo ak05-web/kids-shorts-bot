@@ -245,8 +245,8 @@ Do not include any explanation, markdown, or code fences — just the raw JSON o
   "topic": "{topic}",
 
   "seo": {{
-    "title_main": "...(max 60 chars, starts with power word, includes topic + for Kids)",
-    "title_ab":   "...(alternative title, max 60 chars, different angle)",
+    "title_main": "...(max 60 chars, use one of these proven formats: 'X Shocking [topic] Facts!', 'Why [topic] Will SHOCK You!', 'The WEIRDEST [topic] Facts for Kids!', '[topic] FACTS That Will Blow Your Mind!')",
+    "title_ab":   "...(max 60 chars, different shock/curiosity angle, e.g. 'Did You Know [topic] Can Do THIS?')",
     "description": "...(hook sentence first. Then 3 sentences about the topic. End with subscribe CTA. 350-450 chars.)",
     "chapters": [
       {{"time": "0:00", "label": "Intro"}},
@@ -269,7 +269,7 @@ Do not include any explanation, markdown, or code fences — just the raw JSON o
     ],
     "hashtags": ["#Shorts", "#KidsLearning", "#AnimalFacts", "#WOWAnimals", "#EducationForKids"],
     "pinned_comment": "...(1-2 sentences with main keyword, ends with a question kids can answer, uses emoji)",
-    "thumbnail_prompt": "...(image prompt: bright cartoon Pixar style, {topic} animal close-up, happy surprised face, vibrant background, no text, child-friendly)"
+    "thumbnail_prompt": "...(EXTREME close-up face of {topic}, giant shocked wide eyes, mouth open in surprise, Pixar cartoon style, ultra bright saturated yellow and red background, no text, child-friendly, high contrast, hyper detailed)"
   }},
 
   "hook": "...(exciting opening question max 10 words shown as text overlay)",
@@ -278,23 +278,23 @@ Do not include any explanation, markdown, or code fences — just the raw JSON o
   "scenes": [
     {{
       "scene_number": 1,
-      "narration":    "...(English US, max 20 words, simple vocabulary, excited tone)",
+      "narration":    "...(English US, MINIMUM 35 words MAXIMUM 45 words, simple vocabulary for kids, excited tone, explain the fact in full detail with examples, use short sentences separated by commas for natural pauses)",
       "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...(describe {topic} scene)",
       "text_overlay": "...(3-6 words ALL CAPS plus emoji)"
     }},
-    {{"scene_number": 2, "narration": "...", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
-    {{"scene_number": 3, "narration": "...", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
-    {{"scene_number": 4, "narration": "...", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
-    {{"scene_number": 5, "narration": "...", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
-    {{"scene_number": 6, "narration": "...", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
-    {{"scene_number": 7, "narration": "...", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
-    {{"scene_number": 8, "narration": "...", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}}
+    {{"scene_number": 2, "narration": "...(MINIMUM 35 words, explain fact in detail)", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
+    {{"scene_number": 3, "narration": "...(MINIMUM 35 words, explain fact in detail)", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
+    {{"scene_number": 4, "narration": "...(MINIMUM 35 words, explain fact in detail)", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
+    {{"scene_number": 5, "narration": "...(MINIMUM 35 words, explain fact in detail)", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
+    {{"scene_number": 6, "narration": "...(MINIMUM 35 words, explain fact in detail)", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
+    {{"scene_number": 7, "narration": "...(MINIMUM 35 words, explain fact in detail)", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}},
+    {{"scene_number": 8, "narration": "...(MINIMUM 35 words, explain fact in detail)", "image_prompt": "Cute cartoon Pixar style, bright vibrant colors, child-friendly, ...", "text_overlay": "..."}}
   ]
 }}
 
 Rules:
 - Exactly 8 scenes, no more, no less
-- All narration in simple English, max 20 words each
+- Each narration MUST be 35-45 words — explain each fact fully, use commas for natural pauses
 - Each text_overlay uses ALL CAPS + emoji (e.g. "3 HEARTS! 💙💙💙")
 - Each scene has one wow/surprising fact
 - tags array must have exactly 20 items
@@ -320,7 +320,7 @@ Rules:
                     }
                 ],
                 temperature=0.7,
-                max_tokens=3000,
+                max_tokens=4000,
             )
             raw  = clean_json(response.choices[0].message.content)
             data = json.loads(raw)
@@ -358,16 +358,37 @@ Rules:
 
 def generate_voiceover(data: dict, out_dir: Path) -> list[Path]:
     from gtts import gTTS
-    log("voice", "Generating English voiceover (gTTS)...")
+    log("voice", "Generating English voiceover (gTTS + enhanced)...")
     audio_dir = out_dir / "audio"
     paths     = []
     for scene in data["scenes"]:
-        n    = scene["scene_number"]
-        out  = audio_dir / f"scene_{n:02d}.mp3"
-        tts  = gTTS(text=scene["narration"], lang="en", tld="us", slow=False)
-        tts.save(str(out))
+        n        = scene["scene_number"]
+        raw_out  = audio_dir / f"scene_{n:02d}_raw.mp3"
+        final_out = audio_dir / f"scene_{n:02d}.mp3"
+
+        # Generate raw voice — tld="co.uk" sounds warmer than "us"
+        tts = gTTS(text=scene["narration"], lang="en", tld="co.uk", slow=False)
+        tts.save(str(raw_out))
+
+        # Post-process with FFmpeg to make voice sound warmer and less robotic:
+        # - atempo=0.93  → slightly slower = more natural, less rushed
+        # - equalizer    → boost 180Hz for warmth, cut 4000Hz harshness
+        # - acompressor  → evens out volume spikes for cleaner sound
+        run_cmd([
+            "ffmpeg", "-y", "-i", str(raw_out),
+            "-af",
+            (
+                "atempo=0.93,"
+                "equalizer=f=180:width_type=o:width=2:g=4,"
+                "equalizer=f=4000:width_type=o:width=2:g=-3,"
+                "acompressor=threshold=0.08:ratio=3:attack=5:release=80:makeup=1.5"
+            ),
+            "-ar", "44100",
+            str(final_out)
+        ], f"VoiceEnhance-{n}")
+
         log("voice", f"  Scene {n}: done")
-        paths.append(out)
+        paths.append(final_out)
         time.sleep(0.3)
     return paths
 
@@ -422,16 +443,22 @@ def generate_images(data: dict, out_dir: Path) -> tuple[list[Path], Path]:
     if not ok:
         _fallback_image(thumb_raw, THUMBNAIL_WIDTH, THUMBNAIL_HEIGHT, "blue")
 
-    # Burn title onto thumbnail
-    safe_title = data["seo"]["title_main"][:40].replace("'", "\\'").replace(":", "\\:")
+    # Burn eye-catching text onto thumbnail
+    safe_title = data["seo"]["title_main"][:32].replace("'", "\\'").replace(":", "\\:").replace("%", "\\%")
+    topic_word = data["topic"].upper()[:18].replace("'", "\\'").replace(":", "\\:").replace("%", "\\%")
     run_cmd([
         "ffmpeg", "-y", "-i", str(thumb_raw),
         "-vf",
         (
+            # Big topic name at top in yellow — grabs attention first
+            f"drawtext=text='{topic_word}!':"
+            f"fontsize=115:fontcolor=yellow:borderw=9:bordercolor=black:"
+            f"x=(w-text_w)/2:y=h*0.06,"
+            # Title on red bar at bottom — tells viewer what video is about
             f"drawtext=text='{safe_title}':"
-            f"fontsize=72:fontcolor=white:borderw=6:bordercolor=black:"
-            f"x=(w-text_w)/2:y=h*0.76:"
-            f"box=1:boxcolor=black@0.45:boxborderw=10"
+            f"fontsize=58:fontcolor=white:borderw=5:bordercolor=black:"
+            f"x=(w-text_w)/2:y=h*0.81:"
+            f"box=1:boxcolor=#CC0000@0.92:boxborderw=18"
         ),
         str(thumb_final)
     ], "Thumbnail")
