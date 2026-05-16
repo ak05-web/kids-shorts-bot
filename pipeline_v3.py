@@ -485,11 +485,13 @@ def build_scene_clip(image: Path, audio: Path, overlay: str, n: int, out: Path):
         f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':"
         f"s={VIDEO_WIDTH}x{VIDEO_HEIGHT}:fps={FPS},setsar=1"
     )
+    fade_in  = 0.25
+    fade_out = round(dur - 0.25, 3)
     txt = (
         f"drawtext=text='{safe_ov}':"
         f"fontsize=66:fontcolor=white:borderw=5:bordercolor=black:"
         f"x=(w-text_w)/2:y=h*0.72:"
-        f"alpha='if(lt(t,0.25),t/0.25,if(gt(t,{dur-0.25}),({dur}-t)/0.25,1))'"
+        f"alpha='if(lt(t,{fade_in}),t/{fade_in},if(gt(t,{fade_out}),({dur}-t)/{fade_in},1))'"
     )
     run_cmd([
         "ffmpeg", "-y",
