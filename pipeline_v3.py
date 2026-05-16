@@ -639,6 +639,15 @@ def build_seo_meta(data: dict) -> dict:
 # STAGE 8 — YOUTUBE UPLOAD (Data API v3 — free quota)
 # ─────────────────────────────────────────────────────────────
 
+REFRESH_TOKEN = os.getenv("YT_REFRESH_TOKEN", "")
+    CLIENT_ID     = os.getenv("YT_CLIENT_ID", "")
+    CLIENT_SECRET = os.getenv("YT_CLIENT_SECRET", "")
+    
+    # Debug — check if secrets are reaching the code
+    log("upload", f"Refresh token length: {len(REFRESH_TOKEN)}")
+    log("upload", f"Client ID length: {len(CLIENT_ID)}")
+    log("upload", f"Client Secret length: {len(CLIENT_SECRET)}")
+
 def get_publish_time_utc(slot_cfg: dict) -> str:
     """Compute next publish time in US Eastern, return as UTC string."""
     now_est     = datetime.now(US_EASTERN)
