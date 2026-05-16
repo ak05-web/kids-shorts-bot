@@ -75,10 +75,10 @@ jobs:
 
       - name: Run Slot 1 — Animal Facts
         env:
-          GROQ_API_KEY:      ${{ secrets.GROQ_API_KEY }}
-          YT_REFRESH_TOKEN:  ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CLIENT_ID:      ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET:  ${{ secrets.YT_CLIENT_SECRET }}
+          GROQ_API_KEY:     ${{ secrets.GROQ_API_KEY }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID:     ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: python pipeline_v3.py --slot 1
 
       - name: Run Slot 1 — Animal Facts
@@ -131,12 +131,12 @@ jobs:
             google-auth-oauthlib \
             Pillow
 
-      - name: Run Slot 2 — Animal Facts
+      - name: Run Slot 2 — Dinosaur Facts
         env:
-          GROQ_API_KEY:      ${{ secrets.GROQ_API_KEY }}
-          YT_REFRESH_TOKEN:  ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CLIENT_ID:      ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET:  ${{ secrets.YT_CLIENT_SECRET }}
+          GROQ_API_KEY:     ${{ secrets.GROQ_API_KEY }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID:     ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: python pipeline_v3.py --slot 2
 
       - name: Run Slot 2 — Dinosaur Facts
@@ -189,12 +189,12 @@ jobs:
             google-auth-oauthlib \
             Pillow
 
-      - name: Run Slot 3 — Animal Facts
+      - name: Run Slot 3 — Ocean Animals
         env:
-          GROQ_API_KEY:      ${{ secrets.GROQ_API_KEY }}
-          YT_REFRESH_TOKEN:  ${{ secrets.YT_REFRESH_TOKEN }}
-          YT_CLIENT_ID:      ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET:  ${{ secrets.YT_CLIENT_SECRET }}
+          GROQ_API_KEY:     ${{ secrets.GROQ_API_KEY }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID:     ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
         run: python pipeline_v3.py --slot 3
 
       - name: Run Slot 3 — Ocean Animals
