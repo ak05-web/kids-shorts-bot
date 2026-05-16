@@ -410,7 +410,7 @@ def generate_images(data: dict, out_dir: Path) -> tuple[list[Path], Path]:
             _fallback_image(out, VIDEO_WIDTH, VIDEO_HEIGHT)
         paths.append(out)
         log("images", f"  Scene {n}: {'ok' if ok else 'fallback'}")
-        time.sleep(1.2)
+        time.sleep(3.0)
 
     # SEO Thumbnail (horizontal 16:9)
     thumb_raw   = img_dir / "thumb_raw.jpg"
