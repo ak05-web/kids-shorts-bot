@@ -405,7 +405,13 @@ def generate_images(data: dict, out_dir: Path) -> tuple[list[Path], Path]:
         n   = scene["scene_number"]
         out = img_dir / f"scene_{n:02d}.jpg"
         prompt = scene["image_prompt"] + ", no text, no watermark, vertical 9:16"
-        ok = _fetch_image(prompt, VIDEO_WIDTH, VIDEO_HEIGHT, n * 37, out)
+        ok = False
+        for attempt in range(3):
+            ok = _fetch_image(prompt, VIDEO_WIDTH, VIDEO_HEIGHT, n * 37 + attempt, out)
+            if ok:
+                break
+            log("images", f"  Scene {n}: retry {attempt + 1}...")
+            time.sleep(5)
         if not ok:
             _fallback_image(out, VIDEO_WIDTH, VIDEO_HEIGHT)
         paths.append(out)
