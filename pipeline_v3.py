@@ -658,41 +658,45 @@ def youtube_upload(
     seo_meta: dict,
     slot_cfg: dict,
 ) -> str:
+    from google.oauth2.credentials import Credentials
     from google.auth.transport.requests import Request
-    from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
     from googleapiclient.http import MediaFileUpload
 
-    SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
-    creds  = None
+    # ── Build credentials directly from env vars — no pickle needed ──
+    # These never expire because we use refresh_token to get new access_token
+    REFRESH_TOKEN = os.getenv("YT_REFRESH_TOKEN", "")
+    CLIENT_ID     = os.getenv("YT_CLIENT_ID", "")
+    CLIENT_SECRET = os.getenv("YT_CLIENT_SECRET", "")
+    TOKEN_URI     = "https://oauth2.googleapis.com/token"
 
-    if os.path.exists(YOUTUBE_TOKEN_FILE):
-        with open(YOUTUBE_TOKEN_FILE, "rb") as f:
-            creds = pickle.load(f)
+    creds = Credentials(
+        token         = None,          # will be auto-fetched
+        refresh_token = REFRESH_TOKEN,
+        token_uri     = TOKEN_URI,
+        client_id     = CLIENT_ID,
+        client_secret = CLIENT_SECRET,
+        scopes        = ["https://www.googleapis.com/auth/youtube.force-ssl"]
+    )
 
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow  = InstalledAppFlow.from_client_secrets_file(YOUTUBE_CLIENT_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(YOUTUBE_TOKEN_FILE, "wb") as f:
-            pickle.dump(creds, f)
+    # Auto-refresh access token — happens every run, never expires
+    creds.refresh(Request())
+    log("upload", "YouTube credentials refreshed successfully.")
 
     yt         = build("youtube", "v3", credentials=creds)
     publish_at = get_publish_time_utc(slot_cfg)
 
     log("upload", f"Title:  {seo_meta['title']}")
-    log("upload", f"Slot:   {slot_cfg['publish_hour']:02d}:00 EST → publish_at {publish_at}")
+    log("upload", f"Publish at: {publish_at}")
 
     # ── 1. Upload video ──────────────────────────────────────
     body = {
         "snippet": {
-            "title"              : seo_meta["title"],
-            "description"        : seo_meta["description"],
-            "tags"               : seo_meta["tags"],
-            "categoryId"         : seo_meta["categoryId"],
-            "defaultLanguage"    : seo_meta["defaultLanguage"],
+            "title"               : seo_meta["title"],
+            "description"         : seo_meta["description"],
+            "tags"                : seo_meta["tags"],
+            "categoryId"          : seo_meta["categoryId"],
+            "defaultLanguage"     : seo_meta["defaultLanguage"],
             "defaultAudioLanguage": seo_meta["defaultAudioLanguage"],
         },
         "status": {
@@ -705,10 +709,12 @@ def youtube_upload(
         },
     }
 
-    media   = MediaFileUpload(str(video_path), mimetype="video/mp4",
-                              resumable=True, chunksize=5*1024*1024)
-    req     = yt.videos().insert(part="snippet,status", body=body, media_body=media)
-    resp    = None
+    media = MediaFileUpload(
+        str(video_path), mimetype="video/mp4",
+        resumable=True, chunksize=5*1024*1024
+    )
+    req  = yt.videos().insert(part="snippet,status", body=body, media_body=media)
+    resp = None
     while resp is None:
         status, resp = req.next_chunk()
         if status:
@@ -717,7 +723,7 @@ def youtube_upload(
     video_id = resp["id"]
     log("upload", f"Uploaded! youtube.com/shorts/{video_id}")
 
-    # ── 2. Upload SEO thumbnail ──────────────────────────────
+    # ── 2. Upload thumbnail ───────────────────────────────────
     try:
         yt.thumbnails().set(
             videoId    = video_id,
@@ -727,7 +733,7 @@ def youtube_upload(
     except Exception as e:
         log("upload", f"Thumbnail (non-fatal): {e}")
 
-    # ── 3. Set English localization ──────────────────────────
+    # ── 3. Set English localization ───────────────────────────
     try:
         yt.videos().update(
             part = "localizations",
@@ -745,7 +751,7 @@ def youtube_upload(
     except Exception as e:
         log("upload", f"Localization (non-fatal): {e}")
 
-    # ── 4. Pin first SEO comment ─────────────────────────────
+    # ── 4. Pin first SEO comment ──────────────────────────────
     try:
         time.sleep(3)
         yt.commentThreads().insert(
@@ -759,7 +765,7 @@ def youtube_upload(
                 }
             }
         ).execute()
-        log("upload", f"Pinned comment: {seo_meta['pinned_comment'][:50]}...")
+        log("upload", f"Pinned comment set.")
     except Exception as e:
         log("upload", f"Pinned comment (non-fatal): {e}")
 
