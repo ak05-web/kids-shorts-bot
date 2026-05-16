@@ -73,13 +73,13 @@ jobs:
             google-auth-oauthlib \
             Pillow
 
-      - name: Restore YouTube credentials
+      - name: Run Slot 1 — Animal Facts
         env:
-          YOUTUBE_TOKEN_B64:  ${{ secrets.YOUTUBE_TOKEN_B64 }}
-          YOUTUBE_CLIENT_B64: ${{ secrets.YOUTUBE_CLIENT_B64 }}
-        run: |
-          echo "$YOUTUBE_TOKEN_B64"  | base64 -d > youtube_token.pickle
-          echo "$YOUTUBE_CLIENT_B64" | base64 -d > client_secrets.json
+          GROQ_API_KEY:      ${{ secrets.GROQ_API_KEY }}
+          YT_REFRESH_TOKEN:  ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID:      ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET:  ${{ secrets.YT_CLIENT_SECRET }}
+        run: python pipeline_v3.py --slot 1
 
       - name: Run Slot 1 — Animal Facts
         env:
@@ -131,13 +131,13 @@ jobs:
             google-auth-oauthlib \
             Pillow
 
-      - name: Restore YouTube credentials
+      - name: Run Slot 2 — Animal Facts
         env:
-          YOUTUBE_TOKEN_B64:  ${{ secrets.YOUTUBE_TOKEN_B64 }}
-          YOUTUBE_CLIENT_B64: ${{ secrets.YOUTUBE_CLIENT_B64 }}
-        run: |
-          echo "$YOUTUBE_TOKEN_B64"  | base64 -d > youtube_token.pickle
-          echo "$YOUTUBE_CLIENT_B64" | base64 -d > client_secrets.json
+          GROQ_API_KEY:      ${{ secrets.GROQ_API_KEY }}
+          YT_REFRESH_TOKEN:  ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID:      ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET:  ${{ secrets.YT_CLIENT_SECRET }}
+        run: python pipeline_v3.py --slot 2
 
       - name: Run Slot 2 — Dinosaur Facts
         env:
@@ -189,13 +189,13 @@ jobs:
             google-auth-oauthlib \
             Pillow
 
-      - name: Restore YouTube credentials
+      - name: Run Slot 3 — Animal Facts
         env:
-          YOUTUBE_TOKEN_B64:  ${{ secrets.YOUTUBE_TOKEN_B64 }}
-          YOUTUBE_CLIENT_B64: ${{ secrets.YOUTUBE_CLIENT_B64 }}
-        run: |
-          echo "$YOUTUBE_TOKEN_B64"  | base64 -d > youtube_token.pickle
-          echo "$YOUTUBE_CLIENT_B64" | base64 -d > client_secrets.json
+          GROQ_API_KEY:      ${{ secrets.GROQ_API_KEY }}
+          YT_REFRESH_TOKEN:  ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID:      ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET:  ${{ secrets.YT_CLIENT_SECRET }}
+        run: python pipeline_v3.py --slot 3
 
       - name: Run Slot 3 — Ocean Animals
         env:
