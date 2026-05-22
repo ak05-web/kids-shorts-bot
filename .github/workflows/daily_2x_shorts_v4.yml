@@ -1,0 +1,133 @@
+# .github/workflows/daily_2x_shorts_v4.yml
+# ══════════════════════════════════════════════════════════
+#  GitHub Actions — 2x Daily Kids Shorts v4
+#  Animated Video · Music Only · No Voiceover
+# ══════════════════════════════════════════════════════════
+#
+#  SCHEDULE (US Eastern → UTC):
+#    Slot 1 · 9:00 AM EST  → 14:00 UTC · Animal Facts
+#    Slot 2 · 6:00 PM EST  → 23:00 UTC · Dinosaur Facts
+#
+#  SECRETS NEEDED:
+#    GROQ_API_KEY       → console.groq.com (free)
+#    YT_REFRESH_TOKEN   → from get_youtube_token.py
+#    YT_CLIENT_ID       → from get_youtube_token.py
+#    YT_CLIENT_SECRET   → from get_youtube_token.py
+# ══════════════════════════════════════════════════════════
+
+name: Kids Shorts v4 — 2x Daily Animated
+
+on:
+  schedule:
+    - cron: "0 14 * * *"    # Slot 1 → 9:00 AM EST
+    - cron: "0 23 * * *"    # Slot 2 → 6:00 PM EST
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: "Slot (1=9AM Animal Facts, 2=6PM Dinosaur Facts)"
+        required: true
+        default: "1"
+        type: choice
+        options: ["1", "2"]
+
+jobs:
+
+  # ── SLOT 1 — 9:00 AM EST · Animal Facts ──────────────────
+  slot-1:
+    name: "Slot 1 · 9AM EST · Animal Facts"
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 14 * * *')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == '1')
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          pip install --quiet \
+            groq \
+            pytrends \
+            requests \
+            pytz \
+            google-api-python-client \
+            google-auth-oauthlib \
+            Pillow
+
+      - name: Run Slot 1 — Animal Facts
+        env:
+          GROQ_API_KEY:     ${{ secrets.GROQ_API_KEY }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID:     ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+        run: python pipeline_v4.py --slot 1
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slot1-v4-${{ github.run_number }}
+          path: output/upload_log.jsonl
+          retention-days: 7
+
+  # ── SLOT 2 — 6:00 PM EST · Dinosaur Facts ────────────────
+  slot-2:
+    name: "Slot 2 · 6PM EST · Dinosaur Facts"
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 23 * * *')
+      || (github.event_name == 'workflow_dispatch' && github.event.inputs.slot == '2')
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          pip install --quiet \
+            groq \
+            pytrends \
+            requests \
+            pytz \
+            google-api-python-client \
+            google-auth-oauthlib \
+            Pillow
+
+      - name: Run Slot 2 — Dinosaur Facts
+        env:
+          GROQ_API_KEY:     ${{ secrets.GROQ_API_KEY }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID:     ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+        run: python pipeline_v4.py --slot 2
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: slot2-v4-${{ github.run_number }}
+          path: output/upload_log.jsonl
+          retention-days: 7
