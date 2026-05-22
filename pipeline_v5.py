@@ -599,14 +599,14 @@ def render_manim_scene(script_path: Path, scene_name: str, out_dir: Path) -> Pat
 
     run_cmd([
         "manim",
-        str(script_path),
+        str(script_path.resolve()),
         scene_name,
         "--format", "mp4",
-        "--media_dir", str(render_dir),
+        "--media_dir", str(render_dir.resolve()),
         "--output_file", scene_name,
-        "-q", "m",          # medium quality — fast render
+        "-q", "m",
         "--disable_caching",
-    ], f"Manim-{scene_name}", cwd=out_dir)
+    ], f"Manim-{scene_name}")
 
     # Find the rendered file
     search_paths = [
