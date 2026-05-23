@@ -368,10 +368,6 @@ def write_manim_scene(
             for r in [1.5, 2.5, 3.5, 4.5]
         ])
         self.add(circles)
-        self.play(
-            *[Rotate(c, angle=TAU, run_time=8, rate_func=linear) for c in circles],
-            run_time=0
-        )
 
         # Channel name top
         channel = Text("{CHANNEL_NAME}", font_size=44, color=ManimColor("{slot_cfg['accent1']}"), weight=BOLD)
