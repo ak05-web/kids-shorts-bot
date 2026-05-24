@@ -420,8 +420,8 @@ class {scene_name}(Scene):
 
         # ── Animal image background ─────────────────────────────
         bg = ImageMobject("{img_str}")
-        bg.set_width(config.frame_width)
-        bg.set_height(config.frame_height, stretch=True)
+        bg.stretch_to_fit_width(config.frame_width)
+        bg.stretch_to_fit_height(config.frame_height)
         bg.move_to(ORIGIN)
 
         # Semi-transparent dark overlay so text pops
