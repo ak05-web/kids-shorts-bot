@@ -1,0 +1,88 @@
+name: Kids Shorts Bot v6 — Daily 2 Videos
+
+on:
+  schedule:
+    # Slot 1 — Animal Facts → publish 9:00 AM US Eastern
+    # Run at 6:00 AM UTC (1:30 AM EST buffer for generation)
+    - cron: '0 6 * * *'
+
+    # Slot 2 — Dino Facts → publish 6:00 PM US Eastern
+    # Run at 14:00 UTC (9:00 AM EST buffer for generation)
+    - cron: '0 14 * * *'
+
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: 'Slot number (1 or 2)'
+        required: true
+        default: '1'
+        type: choice
+        options:
+          - '1'
+          - '2'
+
+jobs:
+  generate-and-upload:
+    runs-on: ubuntu-latest
+    # Generous timeout — HF Spaces can have queue wait times
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            groq \
+            pytrends \
+            requests \
+            pytz \
+            gradio_client \
+            google-api-python-client \
+            google-auth-oauthlib \
+            Pillow
+
+      - name: Determine slot from schedule
+        id: slot
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "slot=${{ github.event.inputs.slot }}" >> $GITHUB_OUTPUT
+          else
+            HOUR=$(date -u +%H)
+            if [ "$HOUR" -lt 10 ]; then
+              echo "slot=1" >> $GITHUB_OUTPUT
+            else
+              echo "slot=2" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Run pipeline
+        env:
+          GROQ_API_KEY:      ${{ secrets.GROQ_API_KEY }}
+          YT_REFRESH_TOKEN:  ${{ secrets.YT_REFRESH_TOKEN }}
+          YT_CLIENT_ID:      ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET:  ${{ secrets.YT_CLIENT_SECRET }}
+        run: |
+          python pipeline_v6.py --slot ${{ steps.slot.outputs.slot }}
+
+      - name: Upload log artifact (on failure too)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upload-log-slot-${{ steps.slot.outputs.slot }}
+          path: output/upload_log.jsonl
+          if-no-files-found: ignore
+          retention-days: 30
