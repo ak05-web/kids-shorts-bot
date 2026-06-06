@@ -1,13 +1,13 @@
-name: Kids Shorts Bot v6 — Daily 2 Videos
+name: Kids Shorts Bot v6 — Daily 2 Dino Videos
 
 on:
   schedule:
-    # Slot 1 — Animal Facts → publish 9:00 AM US Eastern
-    # Run at 6:00 AM UTC (1:30 AM EST buffer for generation)
+    # Slot 1 — Dino Facts Morning → publish 9:00 AM US Eastern
+    # Run at 6:00 AM UTC (buffer for generation + HF Space queue)
     - cron: '0 6 * * *'
 
-    # Slot 2 — Dino Facts → publish 6:00 PM US Eastern
-    # Run at 14:00 UTC (9:00 AM EST buffer for generation)
+    # Slot 2 — Dino Facts Evening → publish 6:00 PM US Eastern
+    # Run at 14:00 UTC (buffer for generation)
     - cron: '0 14 * * *'
 
   # Manual trigger for testing
