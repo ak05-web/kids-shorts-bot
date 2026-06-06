@@ -48,7 +48,7 @@ LANGUAGE_CODE  = "en"
 VIDEO_WIDTH    = 1080
 VIDEO_HEIGHT   = 1920
 FPS            = 24
-NUM_SCENES     = 6          # 6 clips × ~4s = ~24s Short (sweet spot for kids)
+NUM_SCENES     = 5          # 5 clips × 4s = ~20s Short (analytics: 21-28s best, 71s = dead)
 CLIP_DURATION  = 4          # seconds per HF video clip
 MUSIC_VOLUME   = 0.88
 CHANNEL_NAME   = "WOW Animals!"
@@ -67,31 +67,34 @@ HF_SPACES = [
 # ─────────────────────────────────────────────────────────────
 SLOTS = {
     1: {
-        "name":          "Animal Facts",
-        "niche":         "fun animal facts for kids",
+        "name":          "Dinosaur Facts Morning",
+        "niche":         "dinosaur facts for kids",
         "publish_hour":  9,
         "publish_min":   0,
-        "music_mood":    "playful upbeat",    # for music selection
+        "music_mood":    "epic adventure",
+        # Analytics: popular dinos first, Mosasaurus CTR 3.77% = formula works
         "topic_pool": [
-            "octopus", "axolotl", "platypus", "mantis shrimp", "chameleon",
-            "mimic octopus", "archerfish", "narwhal", "quokka", "capybara",
-            "blue-footed booby", "dumbo octopus", "glass frog", "fennec fox",
-            "red panda", "sugar glider", "pangolin", "aye-aye", "fossa",
-            "honey badger", "okapi", "binturong", "secretary bird", "tapir",
+            "T-Rex", "velociraptor", "triceratops", "stegosaurus", "brachiosaurus",
+            "ankylosaurus", "spinosaurus", "mosasaurus", "carnotaurus", "giganotosaurus",
+            "diplodocus", "therizinosaurus", "pachycephalosaurus", "parasaurolophus",
+            "allosaurus", "ceratosaurus", "baryonyx", "dilophosaurus", "microraptor",
+            "argentinosaurus", "troodon", "gallimimus", "iguanodon", "kentrosaurus",
         ],
     },
     2: {
-        "name":          "Dinosaur Facts",
+        "name":          "Dinosaur Facts Evening",
         "niche":         "dinosaur facts for kids",
         "publish_hour":  18,
         "publish_min":   0,
         "music_mood":    "epic adventure",
+        # Different order so slots don't repeat same topic on same day
         "topic_pool": [
-            "T-Rex", "velociraptor", "triceratops", "stegosaurus", "brachiosaurus",
-            "ankylosaurus", "spinosaurus", "diplodocus", "carnotaurus",
-            "therizinosaurus", "mosasaurus", "microraptor", "argentinosaurus",
-            "giganotosaurus", "troodon", "baryonyx", "dilophosaurus",
-            "pachycephalosaurus", "parasaurolophus", "gallimimus",
+            "pterodactyl", "plesiosaur", "mosasaurus", "ankylosaurus", "stegosaurus",
+            "T-Rex", "spinosaurus", "carnotaurus", "triceratops", "brachiosaurus",
+            "velociraptor", "giganotosaurus", "diplodocus", "therizinosaurus",
+            "allosaurus", "dilophosaurus", "baryonyx", "ceratosaurus", "microraptor",
+            "argentinosaurus", "gallimimus", "parasaurolophus", "pachycephalosaurus",
+            "iguanodon",
         ],
     },
 }
@@ -100,15 +103,15 @@ SLOTS = {
 # MUSIC TRACKS — matched to mood
 # ─────────────────────────────────────────────────────────────
 MUSIC_BY_MOOD = {
-    "playful upbeat": [
-        "https://assets.mixkit.co/music/preview/mixkit-fun-and-quirky-122.mp3",
-        "https://assets.mixkit.co/music/preview/mixkit-cheerful-fun-and-quirky-268.mp3",
-        "https://assets.mixkit.co/music/preview/mixkit-kids-fun-game-show-248.mp3",
-    ],
     "epic adventure": [
         "https://assets.mixkit.co/music/preview/mixkit-life-is-a-dream-837.mp3",
         "https://assets.mixkit.co/music/preview/mixkit-adventure-orchestral-829.mp3",
         "https://assets.mixkit.co/music/preview/mixkit-epic-music-for-action-video-831.mp3",
+    ],
+    "playful upbeat": [
+        "https://assets.mixkit.co/music/preview/mixkit-fun-and-quirky-122.mp3",
+        "https://assets.mixkit.co/music/preview/mixkit-cheerful-fun-and-quirky-268.mp3",
+        "https://assets.mixkit.co/music/preview/mixkit-kids-fun-game-show-248.mp3",
     ],
 }
 
@@ -184,80 +187,80 @@ def generate_scenes_and_seo(topic: str, slot_cfg: dict) -> dict:
     log("groq", f"Generating scene prompts for: {topic}")
     client = Groq(api_key=GROQ_API_KEY)
 
-    prompt = f"""You are a kids YouTube Shorts specialist and visual storytelling expert.
+    prompt = f"""You are a YouTube Shorts content creator and SEO specialist.
 Channel: "{CHANNEL_NAME}" | Topic: {topic} | Niche: {slot_cfg['niche']}
 Audience: Kids aged 4-10 | Format: Pure visual video — NO text, NO voiceover
-Video structure: {NUM_SCENES} short animated clips stitched together with upbeat kids music.
+Video structure: {NUM_SCENES} short clips x {CLIP_DURATION}s = ~{NUM_SCENES*CLIP_DURATION}s total. SHORT = more replays = more Shorts feed push.
 
-Kids psychology hooks to use:
-- SURPRISE: unexpected/funny animal behavior
-- CUTENESS: baby animals, round eyes, fluffy textures
-- ACTION: jumping, eating, swimming, playing
-- COLOR: ultra-bright, saturated, vibrant palette
-- SCALE: show how big or tiny the animal is
+PROVEN FORMULA from channel analytics:
+- Title: "AWESOME [Dino] for Kids!" = best performing (340 views, 3.77% CTR)
+- Dinosaur content = 85% of all channel views
+- 15-25 second videos perform best — 71s videos got almost zero views
+
+Kids psychology hooks for dinosaurs:
+- SURPRISE: dino doing something shocking or unexpected
+- SCALE: show how MASSIVE the dinosaur is vs humans/cars/buildings  
+- ACTION: running, hunting, roaring, attacking — kids LOVE this
+- DANGER: dramatic teeth, claws, predator behavior
+- COLOR: ultra-vivid Pixar palette, dramatic prehistoric sky/jungle
 
 Respond ONLY with valid raw JSON. No markdown, no explanation.
 
 {{
   "topic": "{topic}",
   "seo": {{
-    "title_main": "...(max 55 chars, e.g. 'AMAZING {topic} Facts! 🤩')",
-    "title_ab": "...(max 55 chars, curiosity angle like 'Did You Know About the {topic}? 😱')",
-    "description": "...(hook sentence + 3 fun facts + subscribe CTA, 300-400 chars, NO hashtags here)",
+    "title_main": "AWESOME {topic} for Kids! 🦕",
+    "title_ab": "Did You Know About {topic}? 😱 #shorts",
+    "description": "...(1 shocking fact about {topic} + subscribe CTA, max 200 chars, NO hashtags here)",
     "tags": [
-      "{topic}", "{topic} for kids", "{topic} facts", "{topic} video kids",
-      "amazing animals", "animal facts for kids", "kids learning",
-      "educational shorts", "wow animals", "nature for kids",
-      "kids youtube", "fun facts kids", "science kids", "animals kids",
-      "cute animals", "animal short", "animal videos kids", "educational video",
-      "kids channel", "wow facts"
+      "{topic}", "{topic} for kids", "{topic} facts", "{topic} dinosaur",
+      "dinosaur facts for kids", "dinosaur kids video", "kids learning dinosaurs",
+      "dinosaur shorts", "wow animals kids", "dino facts kids",
+      "dinosaur educational", "kids youtube dinosaur", "fun dinosaur facts",
+      "{topic} kids", "wow dinosaur", "dino kids video", "dinosaur video kids",
+      "educational shorts", "kids channel", "dinosaur facts"
     ],
-    "hashtags": ["#Shorts", "#KidsLearning", "#AnimalFacts", "#WOWAnimals", "#EducationForKids"],
-    "pinned_comment": "...(fun question for kids with emojis, max 120 chars)"
+    "hashtags": ["#Shorts", "#DinosaurFacts", "#KidsLearning", "#WOWAnimals", "#DinoKids"],
+    "pinned_comment": "...(fun dino question for kids with emojis, max 100 chars)"
   }},
   "scenes": [
     {{
       "scene_number": 1,
       "psychology_hook": "SURPRISE",
-      "image_prompt": "...(detailed Pollinations.ai prompt: cute Pixar cartoon {topic}, specific surprising behavior, bright colors, 9:16 portrait, no text, no watermark)",
+      "image_prompt": "...(40+ words: cute Pixar-style cartoon {topic} dinosaur, specific shocking feature or behavior, ultra vibrant colors, dramatic prehistoric background, 9:16 portrait, no text, no watermark, high detail)",
       "motion_style": "zoom_in"
     }},
     {{
       "scene_number": 2,
-      "psychology_hook": "CUTENESS",
-      "image_prompt": "...",
+      "psychology_hook": "SCALE",
+      "image_prompt": "...(40+ words: show massive size of {topic} compared to tiny human silhouette or car, dramatic scale, Pixar cartoon style, bright colors)",
       "motion_style": "slow_pan_right"
     }},
     {{
       "scene_number": 3,
       "psychology_hook": "ACTION",
-      "image_prompt": "...",
+      "image_prompt": "...(40+ words: {topic} in dramatic action — roaring, running, hunting, dynamic pose, motion blur, epic lighting, Pixar cartoon style)",
       "motion_style": "zoom_out"
     }},
     {{
       "scene_number": 4,
-      "psychology_hook": "COLOR",
-      "image_prompt": "...",
+      "psychology_hook": "DANGER",
+      "image_prompt": "...(40+ words: close-up of {topic} dramatic features — teeth, claws, eyes, menacing but cartoon-cute, kids-safe, Pixar style, vivid colors)",
       "motion_style": "slow_pan_left"
     }},
     {{
       "scene_number": 5,
-      "psychology_hook": "SCALE",
-      "image_prompt": "...",
+      "psychology_hook": "COLOR",
+      "image_prompt": "...(40+ words: {topic} in most colorful environment — lush jungle, volcanic sunset, crystal cave, ultra saturated palette, Pixar cartoon, gorgeous lighting)",
       "motion_style": "zoom_in"
-    }},
-    {{
-      "scene_number": 6,
-      "psychology_hook": "SURPRISE",
-      "image_prompt": "...",
-      "motion_style": "slow_pan_right"
     }}
   ]
 }}
 
 RULES:
-- Exactly {NUM_SCENES} scenes. tags exactly 20 items.
-- Each image_prompt must be very detailed (40+ words) for best AI image quality.
+- Exactly {NUM_SCENES} scenes. Tags exactly 20 items.
+- title_main MUST be: "AWESOME {topic} for Kids! 🦕" — proven formula, do not change format.
+- Each image_prompt must be 40+ words with very specific visual details.
 - RESPOND WITH RAW JSON ONLY."""
 
     for attempt in range(3):
