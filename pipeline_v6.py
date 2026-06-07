@@ -43,26 +43,28 @@ from groq import Groq
 # CONFIG
 # ─────────────────────────────────────────────────────────────
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "")
-HF_TOKEN       = os.getenv("HF_TOKEN", "")   # huggingface.co → Settings → Tokens (free)
+HF_API_TOKEN   = os.getenv("HF_API_TOKEN", "")   # Same secret as KDP pipeline — already set!
 GROQ_MODEL     = "llama-3.3-70b-versatile"
 LANGUAGE_CODE  = "en"
 VIDEO_WIDTH    = 1080
 VIDEO_HEIGHT   = 1920
 FPS            = 24
-NUM_SCENES     = 5          # 5 clips × 4s = ~20s Short (analytics: 21-28s best, 71s = dead)
-CLIP_DURATION  = 4          # seconds per HF video clip
+NUM_SCENES     = 5
+CLIP_DURATION  = 4
 MUSIC_VOLUME   = 0.88
 CHANNEL_NAME   = "WOW Animals!"
 US_EASTERN     = pytz.timezone("America/New_York")
 
-# HF Spaces to try in order (fallback chain)
-# NOTE: Spaces go private/gated often — keep this list updated
-# 401 = private/gated (skip), ZeroGPU quota = try next space
+# HuggingFace FLUX — exact same URL as KDP pipeline (router.huggingface.co works!)
+# NOT api-inference.huggingface.co (that one is DNS-blocked on GitHub Actions)
+HF_FLUX_URL = "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell"
+
+# HF Spaces — for Image-to-Video (Ken Burns is reliable fallback anyway)
 HF_SPACES = [
-    "guoyww/animatediff",                    # Original AnimateDiff — stable
-    "radames/stable-video-diffusion",        # Community SVD — no quota
-    "camenduru/animatediff-lightning",       # Lightning fast variant
-    "hysts/stable-video-diffusion",          # Backup SVD
+    "guoyww/animatediff",
+    "radames/stable-video-diffusion",
+    "camenduru/animatediff-lightning",
+    "hysts/stable-video-diffusion",
 ]
 
 # ─────────────────────────────────────────────────────────────
@@ -106,21 +108,21 @@ SLOTS = {
 # MUSIC TRACKS — matched to mood
 # ─────────────────────────────────────────────────────────────
 # ─────────────────────────────────────────────────────────────
-# MUSIC TRACKS — matched to mood
-# Using Pixabay free music (no API key, CC0 license)
-# Mixkit CDN is blocked on GitHub Actions
+# MUSIC TRACKS — GitHub Actions pe tested sources
+# Free, CC0/royalty-free. Synth fallback if all fail.
 # ─────────────────────────────────────────────────────────────
 MUSIC_BY_MOOD = {
     "epic adventure": [
-        # Pixabay free music — epic/adventure/kids
-        "https://cdn.pixabay.com/download/audio/2022/03/15/audio_8e6f88e8a1.mp3?filename=epic-adventure-116398.mp3",
-        "https://cdn.pixabay.com/download/audio/2023/01/26/audio_f0a3a1a16c.mp3?filename=adventure-time-126872.mp3",
-        "https://cdn.pixabay.com/download/audio/2022/08/02/audio_2dde668d05.mp3?filename=adventure-story-112007.mp3",
+        # Free Music Archive — direct mp3 links (CC0)
+        "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3",
+        "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Kai_Engel/Satin/Kai_Engel_-_07_-_Interlude.mp3",
+        # GitHub raw — bundled tracks (you can add your own mp3s to repo/assets/)
+        "https://raw.githubusercontent.com/ak05-web/kids-shorts-bot/main/assets/music_epic_1.mp3",
     ],
     "playful upbeat": [
-        "https://cdn.pixabay.com/download/audio/2022/10/25/audio_a7e36e71e0.mp3?filename=fun-life-126045.mp3",
-        "https://cdn.pixabay.com/download/audio/2023/03/06/audio_e68c87c3d3.mp3?filename=kids-fun-123196.mp3",
-        "https://cdn.pixabay.com/download/audio/2022/01/20/audio_d6b4f9b7d7.mp3?filename=happy-life-114733.mp3",
+        "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Kai_Engel/Satin/Kai_Engel_-_04_-_Cauliflower.mp3",
+        "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_02_-_Enthusiast.mp3",
+        "https://raw.githubusercontent.com/ak05-web/kids-shorts-bot/main/assets/music_fun_1.mp3",
     ],
 }
 
@@ -307,83 +309,85 @@ RULES:
 # STAGE 3 — DOWNLOAD IMAGES (Pollinations.ai — free)
 # ─────────────────────────────────────────────────────────────
 def download_images(data: dict, out_dir: Path) -> list:
-    log("images", f"Downloading {NUM_SCENES} cartoon images via HF Inference API...")
+    log("images", f"Generating {NUM_SCENES} images via HF FLUX (router.huggingface.co)...")
     img_dir = out_dir / "images"
     paths   = []
 
-    # HF Inference image models to try in order (all free with HF_TOKEN)
-    # FLUX.1-schnell is fastest; SDXL is fallback
-    HF_IMAGE_MODELS = [
-        "black-forest-labs/FLUX.1-schnell",
-        "stabilityai/stable-diffusion-xl-base-1.0",
-        "runwayml/stable-diffusion-v1-5",
-    ]
-    hf_headers = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
+    headers = {
+        "Authorization":   f"Bearer {HF_API_TOKEN}",
+        "Content-Type":    "application/json",
+        "X-Wait-For-Model": "true",
+    }
 
     for scene in data["scenes"]:
         n        = scene["scene_number"]
         out_path = img_dir / f"scene_{n:02d}.jpg"
+        seed     = n * 137 + random.randint(0, 99)
 
-        base_prompt = scene["image_prompt"]
         full_prompt = (
-            f"{base_prompt}, Pixar Disney cartoon style, ultra vibrant colors, "
-            f"child friendly, expressive happy face, no text, no watermark, "
-            f"9:16 portrait aspect ratio, high quality"
-        )
+            f"{scene['image_prompt']}, Pixar Disney cartoon style, ultra vibrant colors, "
+            f"child friendly, expressive face, no text, no watermark, high quality"
+        )[:500]
+
+        payload = {
+            "inputs": full_prompt,
+            "parameters": {
+                "num_inference_steps": 4,
+                "guidance_scale":      0.0,
+                "width":               768,
+                "height":              1024,
+                "seed":                seed,
+            }
+        }
 
         ok = False
-        for model in HF_IMAGE_MODELS:
-            api_url = f"https://api-inference.huggingface.co/models/{model}"
-            payload = {"inputs": full_prompt[:500]}  # HF has input length limits
+        for attempt in range(4):
+            try:
+                log("images", f"  Scene {n} attempt {attempt+1}/4 (seed={seed})...")
+                r = requests.post(HF_FLUX_URL, headers=headers, json=payload, timeout=120)
 
-            for attempt in range(3):
-                try:
-                    r = requests.post(
-                        api_url,
-                        headers={**hf_headers, "Content-Type": "application/json"},
-                        json=payload,
-                        timeout=120,
-                    )
-                    log("images", f"  Scene {n} [{model.split('/')[-1]}] attempt {attempt+1}: HTTP {r.status_code} size={len(r.content)}")
+                if r.status_code == 200:
+                    # Resize/pad to 1080x1920
+                    tmp = img_dir / f"scene_{n:02d}.tmp.jpg"
+                    tmp.write_bytes(r.content)
+                    run_cmd([
+                        "ffmpeg", "-y", "-i", str(tmp),
+                        "-vf", (
+                            f"scale={VIDEO_WIDTH}:{VIDEO_HEIGHT}:force_original_aspect_ratio=decrease,"
+                            f"pad={VIDEO_WIDTH}:{VIDEO_HEIGHT}:(ow-iw)/2:(oh-ih)/2:color=black"
+                        ),
+                        str(out_path)
+                    ], f"ResizeImg-{n}")
+                    tmp.unlink(missing_ok=True)
+                    log("images", f"  Scene {n}: ✓ ok ({len(r.content)//1024}KB)")
+                    ok = True
+                    break
+                elif r.status_code == 503:
+                    wait = 20 * (attempt + 1)
+                    log("images", f"  Scene {n}: Model loading, waiting {wait}s...")
+                    time.sleep(wait)
+                elif r.status_code == 429:
+                    log("images", f"  Scene {n}: Rate limited, waiting 30s...")
+                    time.sleep(30)
+                else:
+                    log("images", f"  Scene {n}: HTTP {r.status_code} — {r.text[:100]}")
+                    time.sleep(10)
 
-                    if r.status_code == 200 and len(r.content) > 8000:
-                        out_path.write_bytes(r.content)
-                        ok = True
-                        break
-                    elif r.status_code == 503:
-                        # Model loading — wait and retry
-                        wait = r.json().get("estimated_time", 20) if r.content else 20
-                        log("images", f"  Scene {n}: Model loading, waiting {min(wait,30):.0f}s...")
-                        time.sleep(min(wait, 30))
-                    elif r.status_code == 429:
-                        log("images", f"  Scene {n}: Rate limited — waiting 30s")
-                        time.sleep(30)
-                    elif r.status_code in (401, 403):
-                        log("images", f"  Scene {n}: Auth error on {model} — check HF_TOKEN secret")
-                        break  # Skip to next model
-                except Exception as ex:
-                    log("images", f"  Scene {n} attempt {attempt+1} error: {ex}")
-                time.sleep(8)
-
-            if ok:
-                break
-            log("images", f"  Scene {n}: {model.split('/')[-1]} failed, trying next model...")
-            time.sleep(5)
+            except Exception as ex:
+                log("images", f"  Scene {n} attempt {attempt+1} error: {str(ex)[:120]}")
+                time.sleep(15)
 
         if not ok:
-            log("images", f"  Scene {n}: All HF models failed — using gradient fallback")
+            log("images", f"  Scene {n}: All attempts failed — gradient fallback")
             colors = ["0x1B5E20", "0x0D47A1", "0x4A148C", "0xBF360C", "0x006064"]
-            color  = colors[n % len(colors)]
             run_cmd([
                 "ffmpeg", "-y", "-f", "lavfi",
-                "-i", f"color=c={color}:size={VIDEO_WIDTH}x{VIDEO_HEIGHT}:duration=1",
+                "-i", f"color=c={colors[n % len(colors)]}:size={VIDEO_WIDTH}x{VIDEO_HEIGHT}:duration=1",
                 "-frames:v", "1", str(out_path)
             ], f"ImgFallback-{n}")
-        else:
-            log("images", f"  Scene {n}: ✓ ok ({len(r.content)//1024}KB)")
 
         paths.append(out_path)
-        time.sleep(3.0)
+        time.sleep(random.uniform(3, 6))  # Same as KDP — polite to HF
 
     log("images", "All images ready.")
     return paths
