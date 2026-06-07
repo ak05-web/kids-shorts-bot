@@ -43,6 +43,7 @@ from groq import Groq
 # CONFIG
 # ─────────────────────────────────────────────────────────────
 GROQ_API_KEY   = os.getenv("GROQ_API_KEY", "")
+HF_TOKEN       = os.getenv("HF_TOKEN", "")   # huggingface.co → Settings → Tokens (free)
 GROQ_MODEL     = "llama-3.3-70b-versatile"
 LANGUAGE_CODE  = "en"
 VIDEO_WIDTH    = 1080
@@ -306,65 +307,71 @@ RULES:
 # STAGE 3 — DOWNLOAD IMAGES (Pollinations.ai — free)
 # ─────────────────────────────────────────────────────────────
 def download_images(data: dict, out_dir: Path) -> list:
-    log("images", f"Downloading {NUM_SCENES} cartoon images from Pollinations...")
+    log("images", f"Downloading {NUM_SCENES} cartoon images via HF Inference API...")
     img_dir = out_dir / "images"
     paths   = []
+
+    # HF Inference image models to try in order (all free with HF_TOKEN)
+    # FLUX.1-schnell is fastest; SDXL is fallback
+    HF_IMAGE_MODELS = [
+        "black-forest-labs/FLUX.1-schnell",
+        "stabilityai/stable-diffusion-xl-base-1.0",
+        "runwayml/stable-diffusion-v1-5",
+    ]
+    hf_headers = {"Authorization": f"Bearer {HF_TOKEN}"} if HF_TOKEN else {}
 
     for scene in data["scenes"]:
         n        = scene["scene_number"]
         out_path = img_dir / f"scene_{n:02d}.jpg"
-        base_prompt = scene["image_prompt"]
 
+        base_prompt = scene["image_prompt"]
         full_prompt = (
             f"{base_prompt}, Pixar Disney cartoon style, ultra vibrant colors, "
             f"child friendly, expressive happy face, no text, no watermark, "
-            f"vertical portrait 9:16 aspect ratio, high quality"
+            f"9:16 portrait aspect ratio, high quality"
         )
-        seed = n * 137 + random.randint(0, 50)
-
-        # Multiple URL strategies — Pollinations sometimes blocks certain params
-        url_variants = [
-            # Strategy 1: flux model, nologo (preferred quality)
-            f"https://image.pollinations.ai/prompt/{quote(full_prompt)}"
-            f"?width={VIDEO_WIDTH}&height={VIDEO_HEIGHT}&seed={seed}&nologo=true&model=flux",
-            # Strategy 2: no model param (default)
-            f"https://image.pollinations.ai/prompt/{quote(full_prompt)}"
-            f"?width={VIDEO_WIDTH}&height={VIDEO_HEIGHT}&seed={seed}&nologo=true",
-            # Strategy 3: safe mode, smaller size (most permissive)
-            f"https://image.pollinations.ai/prompt/{quote(full_prompt)}"
-            f"?width=1080&height=1920&seed={seed}&safe=true",
-            # Strategy 4: minimal params
-            f"https://image.pollinations.ai/prompt/{quote(full_prompt[:200])}"
-            f"?width=720&height=1280",
-        ]
 
         ok = False
-        for url_i, url in enumerate(url_variants):
+        for model in HF_IMAGE_MODELS:
+            api_url = f"https://api-inference.huggingface.co/models/{model}"
+            payload = {"inputs": full_prompt[:500]}  # HF has input length limits
+
             for attempt in range(3):
                 try:
-                    r = requests.get(url, timeout=120,
-                                     headers={"User-Agent": "Mozilla/5.0 (compatible; bot)"})
-                    log("images", f"  Scene {n} url#{url_i+1} attempt {attempt+1}: HTTP {r.status_code} size={len(r.content)}")
+                    r = requests.post(
+                        api_url,
+                        headers={**hf_headers, "Content-Type": "application/json"},
+                        json=payload,
+                        timeout=120,
+                    )
+                    log("images", f"  Scene {n} [{model.split('/')[-1]}] attempt {attempt+1}: HTTP {r.status_code} size={len(r.content)}")
+
                     if r.status_code == 200 and len(r.content) > 8000:
                         out_path.write_bytes(r.content)
                         ok = True
                         break
+                    elif r.status_code == 503:
+                        # Model loading — wait and retry
+                        wait = r.json().get("estimated_time", 20) if r.content else 20
+                        log("images", f"  Scene {n}: Model loading, waiting {min(wait,30):.0f}s...")
+                        time.sleep(min(wait, 30))
                     elif r.status_code == 429:
                         log("images", f"  Scene {n}: Rate limited — waiting 30s")
                         time.sleep(30)
-                    elif r.status_code in (403, 503):
-                        log("images", f"  Scene {n}: {r.status_code} on url#{url_i+1}, trying next variant")
-                        break  # Try next URL variant immediately
+                    elif r.status_code in (401, 403):
+                        log("images", f"  Scene {n}: Auth error on {model} — check HF_TOKEN secret")
+                        break  # Skip to next model
                 except Exception as ex:
                     log("images", f"  Scene {n} attempt {attempt+1} error: {ex}")
                 time.sleep(8)
+
             if ok:
                 break
+            log("images", f"  Scene {n}: {model.split('/')[-1]} failed, trying next model...")
             time.sleep(5)
 
         if not ok:
-            log("images", f"  Scene {n}: All Pollinations variants failed — using gradient fallback")
-            # Gradient fallback — better than solid color for Ken Burns
+            log("images", f"  Scene {n}: All HF models failed — using gradient fallback")
             colors = ["0x1B5E20", "0x0D47A1", "0x4A148C", "0xBF360C", "0x006064"]
             color  = colors[n % len(colors)]
             run_cmd([
@@ -376,7 +383,7 @@ def download_images(data: dict, out_dir: Path) -> list:
             log("images", f"  Scene {n}: ✓ ok ({len(r.content)//1024}KB)")
 
         paths.append(out_path)
-        time.sleep(5.0)   # Be polite to Pollinations
+        time.sleep(3.0)
 
     log("images", "All images ready.")
     return paths
@@ -562,24 +569,15 @@ def get_music(slot: int, slot_cfg: dict) -> Path:
                 log("music", f"  Attempt {attempt+1} error: {e}")
             time.sleep(5)
 
-    # Synthesized fallback — simple upbeat tones via FFmpeg (beats kids will like)
-    # This creates an actual rhythmic sound, not just silence
-    log("music", "All URLs failed — generating synthesized upbeat music via FFmpeg")
+    # Synthesized fallback — simple sine tones, correct FFmpeg syntax
+    log("music", "All URLs failed — generating synthesized music via FFmpeg")
     synth_path = Path(f"assets/music_synth_slot{slot}.mp3")
     run_cmd([
         "ffmpeg", "-y",
-        "-f", "lavfi",
-        # Mix: bass tone + mid tone + high melody
-        "-i", (
-            "amix=inputs=3:duration=longest,"
-            "aloop=loop=-1:size=88200[out];"
-            "sine=frequency=110:duration=90[b];"
-            "sine=frequency=220:duration=90[m];"
-            "sine=frequency=440:duration=90[h];"
-            "[b][m][h]amix=inputs=3,volume=0.5"
-        ),
-        "-t", "90",
-        "-ar", "44100",
+        "-f", "lavfi", "-i", "sine=frequency=220:duration=90",
+        "-f", "lavfi", "-i", "sine=frequency=330:duration=90",
+        "-filter_complex", "[0][1]amix=inputs=2,volume=0.4",
+        "-ar", "44100", "-t", "90",
         str(synth_path)
     ], "SynthMusic")
     log("music", "Synthesized music generated.")
