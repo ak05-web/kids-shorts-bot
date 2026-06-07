@@ -26,7 +26,8 @@ jobs:
   generate-and-upload:
     runs-on: ubuntu-latest
     # Generous timeout — HF Spaces can have queue wait times
-    timeout-minutes: 180
+    # 180 min = 5 scenes × (3 spaces × 2 retries × 15s wait) + video assembly
+    timeout-minutes: 200
 
     steps:
       - name: Checkout repo
