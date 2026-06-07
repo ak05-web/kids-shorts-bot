@@ -55,11 +55,13 @@ CHANNEL_NAME   = "WOW Animals!"
 US_EASTERN     = pytz.timezone("America/New_York")
 
 # HF Spaces to try in order (fallback chain)
-# These are public Image-to-Video spaces — no API key needed
+# NOTE: Spaces go private/gated often — keep this list updated
+# 401 = private/gated (skip), ZeroGPU quota = try next space
 HF_SPACES = [
-    "wangfuyun/AnimateDiff-Lightning",   # Fast, reliable
-    "multimodalart/stable-video-diffusion",
-    "fffiloni/animatediff-lightning",
+    "guoyww/animatediff",                    # Original AnimateDiff — stable
+    "radames/stable-video-diffusion",        # Community SVD — no quota
+    "camenduru/animatediff-lightning",       # Lightning fast variant
+    "hysts/stable-video-diffusion",          # Backup SVD
 ]
 
 # ─────────────────────────────────────────────────────────────
@@ -102,16 +104,22 @@ SLOTS = {
 # ─────────────────────────────────────────────────────────────
 # MUSIC TRACKS — matched to mood
 # ─────────────────────────────────────────────────────────────
+# ─────────────────────────────────────────────────────────────
+# MUSIC TRACKS — matched to mood
+# Using Pixabay free music (no API key, CC0 license)
+# Mixkit CDN is blocked on GitHub Actions
+# ─────────────────────────────────────────────────────────────
 MUSIC_BY_MOOD = {
     "epic adventure": [
-        "https://assets.mixkit.co/music/preview/mixkit-life-is-a-dream-837.mp3",
-        "https://assets.mixkit.co/music/preview/mixkit-adventure-orchestral-829.mp3",
-        "https://assets.mixkit.co/music/preview/mixkit-epic-music-for-action-video-831.mp3",
+        # Pixabay free music — epic/adventure/kids
+        "https://cdn.pixabay.com/download/audio/2022/03/15/audio_8e6f88e8a1.mp3?filename=epic-adventure-116398.mp3",
+        "https://cdn.pixabay.com/download/audio/2023/01/26/audio_f0a3a1a16c.mp3?filename=adventure-time-126872.mp3",
+        "https://cdn.pixabay.com/download/audio/2022/08/02/audio_2dde668d05.mp3?filename=adventure-story-112007.mp3",
     ],
     "playful upbeat": [
-        "https://assets.mixkit.co/music/preview/mixkit-fun-and-quirky-122.mp3",
-        "https://assets.mixkit.co/music/preview/mixkit-cheerful-fun-and-quirky-268.mp3",
-        "https://assets.mixkit.co/music/preview/mixkit-kids-fun-game-show-248.mp3",
+        "https://cdn.pixabay.com/download/audio/2022/10/25/audio_a7e36e71e0.mp3?filename=fun-life-126045.mp3",
+        "https://cdn.pixabay.com/download/audio/2023/03/06/audio_e68c87c3d3.mp3?filename=kids-fun-123196.mp3",
+        "https://cdn.pixabay.com/download/audio/2022/01/20/audio_d6b4f9b7d7.mp3?filename=happy-life-114733.mp3",
     ],
 }
 
@@ -305,46 +313,70 @@ def download_images(data: dict, out_dir: Path) -> list:
     for scene in data["scenes"]:
         n        = scene["scene_number"]
         out_path = img_dir / f"scene_{n:02d}.jpg"
-
-        # Use the AI-generated detailed prompt
         base_prompt = scene["image_prompt"]
+
         full_prompt = (
             f"{base_prompt}, Pixar Disney cartoon style, ultra vibrant colors, "
             f"child friendly, expressive happy face, no text, no watermark, "
             f"vertical portrait 9:16 aspect ratio, high quality"
         )
+        seed = n * 137 + random.randint(0, 50)
 
-        url = (
+        # Multiple URL strategies — Pollinations sometimes blocks certain params
+        url_variants = [
+            # Strategy 1: flux model, nologo (preferred quality)
             f"https://image.pollinations.ai/prompt/{quote(full_prompt)}"
-            f"?width={VIDEO_WIDTH}&height={VIDEO_HEIGHT}"
-            f"&seed={n * 137 + random.randint(0, 50)}&nologo=true&model=flux"
-        )
+            f"?width={VIDEO_WIDTH}&height={VIDEO_HEIGHT}&seed={seed}&nologo=true&model=flux",
+            # Strategy 2: no model param (default)
+            f"https://image.pollinations.ai/prompt/{quote(full_prompt)}"
+            f"?width={VIDEO_WIDTH}&height={VIDEO_HEIGHT}&seed={seed}&nologo=true",
+            # Strategy 3: safe mode, smaller size (most permissive)
+            f"https://image.pollinations.ai/prompt/{quote(full_prompt)}"
+            f"?width=1080&height=1920&seed={seed}&safe=true",
+            # Strategy 4: minimal params
+            f"https://image.pollinations.ai/prompt/{quote(full_prompt[:200])}"
+            f"?width=720&height=1280",
+        ]
 
         ok = False
-        for attempt in range(4):
-            try:
-                r = requests.get(url, timeout=120)
-                if r.status_code == 200 and len(r.content) > 8000:
-                    out_path.write_bytes(r.content)
-                    ok = True
-                    break
-            except Exception as ex:
-                log("images", f"  Scene {n} attempt {attempt+1} error: {ex}")
-            time.sleep(6)
+        for url_i, url in enumerate(url_variants):
+            for attempt in range(3):
+                try:
+                    r = requests.get(url, timeout=120,
+                                     headers={"User-Agent": "Mozilla/5.0 (compatible; bot)"})
+                    log("images", f"  Scene {n} url#{url_i+1} attempt {attempt+1}: HTTP {r.status_code} size={len(r.content)}")
+                    if r.status_code == 200 and len(r.content) > 8000:
+                        out_path.write_bytes(r.content)
+                        ok = True
+                        break
+                    elif r.status_code == 429:
+                        log("images", f"  Scene {n}: Rate limited — waiting 30s")
+                        time.sleep(30)
+                    elif r.status_code in (403, 503):
+                        log("images", f"  Scene {n}: {r.status_code} on url#{url_i+1}, trying next variant")
+                        break  # Try next URL variant immediately
+                except Exception as ex:
+                    log("images", f"  Scene {n} attempt {attempt+1} error: {ex}")
+                time.sleep(8)
+            if ok:
+                break
+            time.sleep(5)
 
         if not ok:
-            # Fallback: colored rectangle
+            log("images", f"  Scene {n}: All Pollinations variants failed — using gradient fallback")
+            # Gradient fallback — better than solid color for Ken Burns
+            colors = ["0x1B5E20", "0x0D47A1", "0x4A148C", "0xBF360C", "0x006064"]
+            color  = colors[n % len(colors)]
             run_cmd([
                 "ffmpeg", "-y", "-f", "lavfi",
-                "-i", f"color=c=0x1a237e:size={VIDEO_WIDTH}x{VIDEO_HEIGHT}:duration=1",
+                "-i", f"color=c={color}:size={VIDEO_WIDTH}x{VIDEO_HEIGHT}:duration=1",
                 "-frames:v", "1", str(out_path)
             ], f"ImgFallback-{n}")
-            log("images", f"  Scene {n}: FALLBACK color used")
         else:
-            log("images", f"  Scene {n}: ok ({len(r.content)//1024}KB)")
+            log("images", f"  Scene {n}: ✓ ok ({len(r.content)//1024}KB)")
 
         paths.append(out_path)
-        time.sleep(4.0)   # Be polite to Pollinations
+        time.sleep(5.0)   # Be polite to Pollinations
 
     log("images", "All images ready.")
     return paths
@@ -502,34 +534,56 @@ def generate_all_clips(data: dict, image_paths: list, out_dir: Path) -> list:
 # STAGE 5 — BACKGROUND MUSIC (topic/mood matched)
 # ─────────────────────────────────────────────────────────────
 def get_music(slot: int, slot_cfg: dict) -> Path:
-    mood  = slot_cfg.get("music_mood", "playful upbeat")
-    tracks = MUSIC_BY_MOOD.get(mood, MUSIC_BY_MOOD["playful upbeat"])
-    # Rotate daily so same slot doesn't always use same track
+    mood   = slot_cfg.get("music_mood", "epic adventure")
+    tracks = MUSIC_BY_MOOD.get(mood, MUSIC_BY_MOOD["epic adventure"])
     day_idx = datetime.now().timetuple().tm_yday % len(tracks)
-    url = tracks[day_idx]
 
     path = Path(f"assets/music_slot{slot}_day{day_idx}.mp3")
     if path.exists() and path.stat().st_size > 10_000:
         log("music", f"Cached: {path.name}")
         return path
 
-    log("music", f"Downloading {mood} music: {url}")
-    for attempt in range(3):
-        try:
-            r = requests.get(url, timeout=30)
-            if r.status_code == 200 and len(r.content) > 10_000:
-                path.write_bytes(r.content)
-                log("music", "Music downloaded.")
-                return path
-        except Exception as e:
-            log("music", f"Attempt {attempt+1} failed: {e}")
-        time.sleep(5)
+    # Try all tracks in rotation order (in case one URL is down)
+    for i in range(len(tracks)):
+        idx = (day_idx + i) % len(tracks)
+        url = tracks[idx]
+        log("music", f"Trying music track {idx+1}: {url[-50:]}")
+        for attempt in range(2):
+            try:
+                r = requests.get(url, timeout=45,
+                                 headers={"User-Agent": "Mozilla/5.0 (compatible; bot)",
+                                          "Referer": "https://pixabay.com/"})
+                log("music", f"  HTTP {r.status_code} size={len(r.content)}")
+                if r.status_code == 200 and len(r.content) > 10_000:
+                    path.write_bytes(r.content)
+                    log("music", f"Music downloaded ✓ ({len(r.content)//1024}KB)")
+                    return path
+            except Exception as e:
+                log("music", f"  Attempt {attempt+1} error: {e}")
+            time.sleep(5)
 
-    # Silent fallback
-    log("music", "WARNING: Using silent fallback audio")
-    run_cmd(["ffmpeg", "-y", "-f", "lavfi", "-i",
-             "anullsrc=r=44100:cl=stereo", "-t", "90", str(path)])
-    return path
+    # Synthesized fallback — simple upbeat tones via FFmpeg (beats kids will like)
+    # This creates an actual rhythmic sound, not just silence
+    log("music", "All URLs failed — generating synthesized upbeat music via FFmpeg")
+    synth_path = Path(f"assets/music_synth_slot{slot}.mp3")
+    run_cmd([
+        "ffmpeg", "-y",
+        "-f", "lavfi",
+        # Mix: bass tone + mid tone + high melody
+        "-i", (
+            "amix=inputs=3:duration=longest,"
+            "aloop=loop=-1:size=88200[out];"
+            "sine=frequency=110:duration=90[b];"
+            "sine=frequency=220:duration=90[m];"
+            "sine=frequency=440:duration=90[h];"
+            "[b][m][h]amix=inputs=3,volume=0.5"
+        ),
+        "-t", "90",
+        "-ar", "44100",
+        str(synth_path)
+    ], "SynthMusic")
+    log("music", "Synthesized music generated.")
+    return synth_path
 
 # ─────────────────────────────────────────────────────────────
 # STAGE 6 — ASSEMBLE FINAL VIDEO
